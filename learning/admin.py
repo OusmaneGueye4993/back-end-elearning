@@ -103,7 +103,7 @@ class NotificationAdmin(admin.ModelAdmin):
     list_display = ('destinataire', 'type_notif', 'est_lu', 'created_at')
     list_filter = ('type_notif', 'est_lu')
 
-@admin.register(Certificat)
+@admin.register(Certificat)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 class CertificatAdmin(admin.ModelAdmin):
     list_display = ('etudiant', 'module', 'uuid', 'date_obtention')
     readonly_fields = ('uuid', 'date_obtention')
