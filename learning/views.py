@@ -58,22 +58,21 @@ class ModuleViewSet(viewsets.ModelViewSet):
     serializer_class = ModuleSerializer
     permission_classes = [permissions.IsAuthenticated, IsEnseignantOrReadOnly]
 
+    # Dans ModuleViewSet
     def get_queryset(self):
         user = self.request.user
         
-        # 1. Les admins voient tout
-        if user.is_staff:
-            return Module.objects.all()
-        
-        # 2. Un enseignant voit UNIQUEMENT les modules qu'il a créés
+        # 1. Si c'est un enseignant : il voit ses propres modules
         if hasattr(user, 'enseignant'):
             return Module.objects.filter(enseignant=user.enseignant)
         
-        # 3. Un étudiant voit UNIQUEMENT les modules où il est inscrit
+        # 2. Si c'est un étudiant : il doit voir TOUS les modules publiés 
+        # pour pouvoir choisir celui auquel il veut s'inscrire
         if hasattr(user, 'etudiant'):
-            return Module.objects.filter(inscriptions__etudiant=user.etudiant).distinct()
+            return Module.objects.filter(est_publie=True) 
             
-        return Module.objects.none()
+        # 3. Par défaut (admin)
+        return Module.objects.all()
 
     def get_serializer_class(self):
         # Utilise un sérialiseur détaillé pour la vue par ID (pour voir les cours)
@@ -132,27 +131,58 @@ class RessourceViewSet(viewsets.ModelViewSet):
 # INSCRIPTION
 # ==============================================================
 
+# Dans learning/views.py
+
+# ... vos autres imports (ModuleViewSet, CoursViewSet, etc.)
+
+# ==============================================================
+# INSCRIPTION (Mise à jour pour l'étape B)
+# ==============================================================
+
 class InscriptionViewSet(viewsets.ModelViewSet):
-    serializer_class   = InscriptionSerializer
+    serializer_class = InscriptionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
+        # L'admin voit tout
         if user.is_staff:
-            return Inscription.objects.select_related('etudiant__user', 'module').all()
+            return Inscription.objects.all()
+        # L'étudiant ne voit que SES propres inscriptions
         if hasattr(user, 'etudiant'):
-            return (
-                Inscription.objects
-                .filter(etudiant=user.etudiant)
-                .select_related('module__enseignant__user')
-            )
+            return Inscription.objects.filter(etudiant=user.etudiant)
+        # L'enseignant voit les inscriptions aux modules qu'il enseigne
+        if hasattr(user, 'enseignant'):
+            return Inscription.objects.filter(module__enseignant=user.enseignant)
         return Inscription.objects.none()
 
     def perform_create(self, serializer):
-        etudiant = _get_etudiant_or_403(self.request.user)
-        serializer.save(etudiant=etudiant)
+        # Sécurité : Vérifier que c'est bien un étudiant qui s'inscrit
+        if not hasattr(self.request.user, 'etudiant'):
+            raise ValidationError("Seuls les étudiants peuvent s'inscrire aux modules.")
+        
+        # Sécurité : Éviter les doublons (ne pas s'inscrire deux fois au même module)
+        module_id = self.request.data.get('module')
+        if Inscription.objects.filter(etudiant=self.request.user.etudiant, module_id=module_id).exists():
+            raise ValidationError("Vous êtes déjà inscrit à ce module.")
+            
+        # Sauvegarde automatique avec l'étudiant connecté et le statut par défaut
+        serializer.save(etudiant=self.request.user.etudiant, statut='en_attente')
+
+    # --- AJOUT DE L'ACTION POUR L'ENSEIGNANT (Étape suivante) ---
+    @action(detail=True, methods=['post'])
+    def accepter(self, request, pk=None):
+        inscription = self.get_object()
+        # Vérification : l'utilisateur est-il l'enseignant de ce module ?
+        if inscription.module.enseignant.user != request.user:
+            return Response({"error": "Vous n'êtes pas l'enseignant de ce module."}, status=403)
+            
+        inscription.statut = 'accepte'
+        inscription.save()
+        return Response({"message": "Inscription validée avec succès !"})
 
 
+        
 # ==============================================================
 # PROGRESSION
 # ==============================================================

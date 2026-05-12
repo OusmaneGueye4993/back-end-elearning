@@ -59,26 +59,30 @@ class ModuleSerializer(serializers.ModelSerializer):
         model = Module
         fields = [
             'id', 'nom', 'description', 
-            'date_creation', 'enseignant_nom', 
+            'created_at', 'enseignant_nom', 
             'nombre_etudiants', 'statut_inscription'
         ]
 
     def get_nombre_etudiants(self, obj):
-        # On compte seulement les inscriptions acceptées
-        return obj.inscriptions.filter(statut='accepte').count()
+    # On compte toutes les inscriptions liées à ce module
+        return obj.inscriptions.count()
+
 
     def get_statut_inscription(self, obj):
         request = self.context.get('request')
-        # Sécurité : on vérifie que request existe et que l'user est authentifié
+    # On vérifie si l'utilisateur est un étudiant connecté
         if request and hasattr(request, 'user') and request.user.is_authenticated:
-            user = request.user
-            if hasattr(user, 'etudiant'):
+            if hasattr(request.user, 'etudiant'):
                 inscription = Inscription.objects.filter(
-                    etudiant=user.etudiant, 
-                    module=obj
-                ).first()
-                return inscription.statut if inscription else 'non_inscrit'
-        return None 
+                etudiant=request.user.etudiant, 
+                module=obj
+            ).first()
+            
+                if inscription:
+                # On utilise le champ que vous venez de créer
+                    return 'complete' if inscription.est_complete else 'inscrit'
+    
+        return 'non_inscrit'
 
 class ModuleDetailSerializer(ModuleSerializer):
     cours = CoursSerializer(many=True, read_only=True)

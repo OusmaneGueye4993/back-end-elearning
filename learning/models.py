@@ -62,7 +62,7 @@ class Module(models.Model):
     enseignant  = models.ForeignKey(Enseignant, on_delete=models.SET_NULL, null=True, related_name='modules')
     est_publie  = models.BooleanField(default=False)
     created_at  = models.DateTimeField(auto_now_add=True)
-
+    statut      = models.CharField(max_length=20, default='en_cours')
     def __str__(self):
         return self.nom
 
@@ -133,11 +133,16 @@ class Ressource(models.Model):
 # ==============================================================
 
 class Inscription(models.Model):
+    STATUT_CHOICES = [
+        ('en_attente', 'En attente'),
+        ('accepte', 'Accepté'),
+        ('refuse', 'Refusé'),
+    ]
     etudiant    = models.ForeignKey(Etudiant, on_delete=models.CASCADE, related_name='inscriptions')
     module      = models.ForeignKey(Module, on_delete=models.CASCADE, related_name='inscriptions')
     date_inscription = models.DateTimeField(auto_now_add=True)
-    est_complete     = models.BooleanField(default=False)
-
+    est_complete = models.BooleanField(default=False) # <--- Ajoutez ceci
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente')
     class Meta:
         unique_together = ('etudiant', 'module')
         indexes = [models.Index(fields=['etudiant', 'module'], name='inscr_etud_mod_idx')]
