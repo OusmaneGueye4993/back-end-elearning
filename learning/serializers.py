@@ -47,9 +47,6 @@ class CoursSerializer(serializers.ModelSerializer):
         model = Cours
         fields = ['id', 'module', 'titre', 'description', 'ordre', 'est_publie', 'ressources']
 
-# learning/serializers.py
-# learning/serializers.py
-
 class ModuleSerializer(serializers.ModelSerializer):
     enseignant_nom = serializers.ReadOnlyField(source='enseignant.user.get_full_name')
     nombre_etudiants = serializers.SerializerMethodField()
@@ -64,24 +61,20 @@ class ModuleSerializer(serializers.ModelSerializer):
         ]
 
     def get_nombre_etudiants(self, obj):
-    # On compte toutes les inscriptions liées à ce module
         return obj.inscriptions.count()
-
 
     def get_statut_inscription(self, obj):
         request = self.context.get('request')
-    # On vérifie si l'utilisateur est un étudiant connecté
         if request and hasattr(request, 'user') and request.user.is_authenticated:
             if hasattr(request.user, 'etudiant'):
                 inscription = Inscription.objects.filter(
-                etudiant=request.user.etudiant, 
-                module=obj
-            ).first()
-            
+                    etudiant=request.user.etudiant, 
+                    module=obj
+                ).first()
                 if inscription:
-                # On utilise le champ que vous venez de créer
-                    return 'complete' if inscription.est_complete else 'inscrit'
-    
+                    if inscription.est_complete:
+                        return 'complete'
+                    return inscription.statut
         return 'non_inscrit'
 
 class ModuleDetailSerializer(ModuleSerializer):
@@ -112,8 +105,6 @@ class QuizSerializer(serializers.ModelSerializer):
     class Meta:
         model = Quiz
         fields = ['id', 'module', 'titre', 'description', 'note_de_passage', 'est_publie', 'questions']
-
-# --- LOGIQUE DE SOUMISSION DES RÉSULTATS ---
 
 class ReponseEtudiantSerializer(serializers.ModelSerializer):
     class Meta:
@@ -157,7 +148,6 @@ class SoumissionQuizCreateSerializer(serializers.Serializer):
                 if choix.est_correct:
                     points_obtenus += question.points
 
-            # Calcul automatique du score final sur 100
             score_final = (points_obtenus / total_points * 100) if total_points > 0 else 0
             soumission.score = score_final
             soumission.reussi = score_final >= quiz.note_de_passage
@@ -170,12 +160,20 @@ class SoumissionQuizCreateSerializer(serializers.Serializer):
 # ==============================================================
 
 class InscriptionSerializer(serializers.ModelSerializer):
+    etudiant_nom = serializers.SerializerMethodField()
     module_nom = serializers.ReadOnlyField(source='module.nom')
 
     class Meta:
         model = Inscription
-        fields = ['id', 'etudiant', 'module', 'module_nom', 'date_inscription', 'est_complete']
-        read_only_fields = ['etudiant', 'date_inscription', 'est_complete']
+        fields = [
+            'id', 'etudiant', 'etudiant_nom', 'module', 
+            'module_nom', 'date_inscription', 'statut', 'est_complete'
+        ]
+        read_only_fields = ['etudiant', 'statut', 'est_complete']
+
+    def get_etudiant_nom(self, obj):
+        user = obj.etudiant.user
+        return f"{user.first_name} {user.last_name}".strip() or user.username
 
 class ProgressionSerializer(serializers.ModelSerializer):
     cours_titre = serializers.ReadOnlyField(source='cours.titre')

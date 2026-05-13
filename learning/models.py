@@ -63,6 +63,7 @@ class Module(models.Model):
     est_publie  = models.BooleanField(default=False)
     created_at  = models.DateTimeField(auto_now_add=True)
     statut      = models.CharField(max_length=20, default='en_cours')
+    code        = models.CharField(max_length=20, blank=True, default='')
     def __str__(self):
         return self.nom
 
@@ -142,7 +143,7 @@ class Inscription(models.Model):
     module      = models.ForeignKey(Module, on_delete=models.CASCADE, related_name='inscriptions')
     date_inscription = models.DateTimeField(auto_now_add=True)
     est_complete = models.BooleanField(default=False) # <--- Ajoutez ceci
-    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente')
+    statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='en_attente') # NOUVEAU
     class Meta:
         unique_together = ('etudiant', 'module')
         indexes = [models.Index(fields=['etudiant', 'module'], name='inscr_etud_mod_idx')]
