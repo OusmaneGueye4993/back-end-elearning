@@ -35,9 +35,6 @@ from .serializers import (
 )
 
 
-# ==============================================================
-# HELPER INTERNE
-# ==============================================================
 
 def _get_etudiant_or_403(user):
     """
@@ -47,10 +44,6 @@ def _get_etudiant_or_403(user):
         raise PermissionDenied("Cette action est réservée aux étudiants.")
     return user.etudiant
 
-
-# ==============================================================
-# MODULE
-# ==============================================================
 
 # backend/api/views.py
 
@@ -131,13 +124,6 @@ class RessourceViewSet(viewsets.ModelViewSet):
 # INSCRIPTION
 # ==============================================================
 
-# Dans learning/views.py
-
-# ... vos autres imports (ModuleViewSet, CoursViewSet, etc.)
-
-# ==============================================================
-# INSCRIPTION (Mise à jour pour l'étape B)
-# ==============================================================
 
 class InscriptionViewSet(viewsets.ModelViewSet):
     serializer_class = InscriptionSerializer
